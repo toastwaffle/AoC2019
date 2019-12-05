@@ -5,18 +5,18 @@
 bool IsValid(const int& password) {
   std::string as_string = std::to_string(password);
 
-  if (
-    as_string.find("00") == std::string::npos &&
-    as_string.find("11") == std::string::npos &&
-    as_string.find("22") == std::string::npos &&
-    as_string.find("33") == std::string::npos &&
-    as_string.find("44") == std::string::npos &&
-    as_string.find("55") == std::string::npos &&
-    as_string.find("66") == std::string::npos &&
-    as_string.find("77") == std::string::npos &&
-    as_string.find("88") == std::string::npos &&
-    as_string.find("99") == std::string::npos
-  ) {
+  if (!(
+    (as_string.find("00") != std::string::npos && as_string.find("000") == std::string::npos) ||
+    (as_string.find("11") != std::string::npos && as_string.find("111") == std::string::npos) ||
+    (as_string.find("22") != std::string::npos && as_string.find("222") == std::string::npos) ||
+    (as_string.find("33") != std::string::npos && as_string.find("333") == std::string::npos) ||
+    (as_string.find("44") != std::string::npos && as_string.find("444") == std::string::npos) ||
+    (as_string.find("55") != std::string::npos && as_string.find("555") == std::string::npos) ||
+    (as_string.find("66") != std::string::npos && as_string.find("666") == std::string::npos) ||
+    (as_string.find("77") != std::string::npos && as_string.find("777") == std::string::npos) ||
+    (as_string.find("88") != std::string::npos && as_string.find("888") == std::string::npos) ||
+    (as_string.find("99") != std::string::npos && as_string.find("999") == std::string::npos)
+  )) {
     return false;
   }
 
