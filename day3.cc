@@ -20,6 +20,8 @@ struct Wire {
   Point start;
   Point end;
   Direction direction;
+  // Cumulative signal delay to start.
+  int delay;
 };
 
 std::optional<Point> Intersection(const Wire& first, const Wire& second) {
@@ -56,6 +58,7 @@ std::optional<Point> Intersection(const Wire& first, const Wire& second) {
 
 std::vector<Wire> MakeWires(const std::vector<std::string>& moves) {
   Point current = {0, 0};
+  int delay = 0;
   std::vector<Wire> wires;
   for (const auto& move : moves) {
     Point next = {current.x, current.y};
@@ -77,8 +80,9 @@ std::vector<Wire> MakeWires(const std::vector<std::string>& moves) {
         next.y -= distance;
         break;
     }
-    wires.push_back(Wire{current, next, direction});
+    wires.push_back(Wire{current, next, direction, delay});
     current = next;
+    delay += distance;
   }
   return wires;
 }
@@ -109,13 +113,20 @@ std::pair<std::vector<std::string>, std::vector<std::string>> ReadInput() {
   return std::pair<std::vector<std::string>, std::vector<std::string>>(first, second);
 }
 
+int SignalDelay(const Wire& wire, const Point& intersection) {
+  if (wire.direction == LR) {
+    return std::abs(intersection.x - wire.start.x) + wire.delay;
+  }
+  return std::abs(intersection.y - wire.start.y) + wire.delay;
+}
+
 int ClosestIntersection(const std::pair<std::vector<std::string>, std::vector<std::string>>& moves) {
   int closest = std::numeric_limits<int>::max();
   for (const auto& first : MakeWires(moves.first)) {
     for (const auto& second : MakeWires(moves.second)) {
       auto intersection = Intersection(first, second);
       if (intersection.has_value()) {
-        int distance = std::abs(intersection->x) + std::abs(intersection->y);
+        int distance = SignalDelay(first, *intersection) + SignalDelay(second, *intersection);
         if (distance < closest) {
           closest = distance;
         }
