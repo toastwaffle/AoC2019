@@ -12,3 +12,8 @@ cc_binary(
     name = "day3",
     srcs = ["day3.cc"],
 )
+
+cc_binary(
+    name = "day4",
+    srcs = ["day4.cc"],
+)
