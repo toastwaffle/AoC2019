@@ -93,8 +93,9 @@ int GetArg(const std::vector<int>& memory, const Instruction& instr, int index) 
   return memory[param];
 }
 
-int Run(std::vector<int> memory) {
+int Run(std::vector<int> memory, std::vector<int>& inputs, std::vector<int>& outputs) {
   int ip = 0;
+  int inputIndex = 0;
   while (ip < memory.size()) {
     auto instr = NextInstruction(memory, &ip);
     switch (instr.operation) {
@@ -105,13 +106,14 @@ int Run(std::vector<int> memory) {
       memory[instr.parameters[2]] = GetArg(memory, instr, 0) * GetArg(memory, instr, 1);
       break;
     case INPUT:
-      int input;
-      std::cout << "Input: ";
-      std::cin >> input;
+    {
+      int input = inputs[inputIndex];
+      inputIndex++;
       memory[instr.parameters[0]] = input;
       break;
+    }
     case OUTPUT:
-      std::cout << "Output: " << GetArg(memory, instr, 0) << std::endl;
+      outputs.push_back(GetArg(memory, instr, 0));
       break;
     case JUMP_IF_TRUE:
       if (GetArg(memory, instr, 0) != 0) {
@@ -148,17 +150,17 @@ int Run(std::vector<int> memory) {
   exit(1);
 }
 
-int RunProgram(const std::string& filename) {
-  return Run(ReadInput(filename));
+int RunProgram(const std::string& filename, std::vector<int>& inputs, std::vector<int>& outputs) {
+  return Run(ReadInput(filename), inputs, outputs);
 }
 
-int RunProgram(const std::string& filename, int noun, int verb) {
+int RunProgram(const std::string& filename, int noun, int verb, std::vector<int>& inputs, std::vector<int>& outputs) {
   std::vector<int> memory = ReadInput(filename);
 
   memory[1] = noun;
   memory[2] = verb;
 
-  return Run(memory);
+  return Run(memory, inputs, outputs);
 }
 
 } // namespace intcode
