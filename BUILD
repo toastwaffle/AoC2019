@@ -3,9 +3,16 @@ cc_binary(
     srcs = ["day1.cc"],
 )
 
+cc_library(
+    name = "intcode",
+    srcs = ["intcode.cc"],
+    hdrs = ["intcode.h"],
+)
+
 cc_binary(
     name = "day2",
     srcs = ["day2.cc"],
+    deps = [":intcode"],
 )
 
 cc_binary(
@@ -16,4 +23,10 @@ cc_binary(
 cc_binary(
     name = "day4",
     srcs = ["day4.cc"],
+)
+
+cc_binary(
+    name = "day5",
+    srcs = ["day5.cc"],
+    deps = [":intcode"],
 )
