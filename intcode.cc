@@ -59,6 +59,7 @@ void IntCode::SetOutputter(std::function<void(int)> outputter) {
 }
 
 void IntCode::NextInstruction() {
+  if (this->halted) return;
   if (this->ip >= this->memory.size()) {
     std::cerr << this->instance << ": Ran out of instructions" << std::endl;
     exit(1);
@@ -95,12 +96,17 @@ void IntCode::Run() {
     case INPUT:
       return;
     case OUTPUT:
+    {
       if (this->outputter == nullptr) {
         std::cerr << this->instance << ": No outputter set for OUTPUT instruction." << std::endl;
         exit(1);
       }
-      this->outputter(this->GetArg(0));
-      break;
+      // If the output causes Input or Run to be called, we need the instruction to be advanced.
+      int output = this->GetArg(0);
+      this->NextInstruction();
+      this->outputter(output);
+      continue;
+    }
     case JUMP_IF_TRUE:
       if (this->GetArg(0) != 0) {
         ip = this->GetArg(1);
@@ -141,7 +147,7 @@ void IntCode::SendInput(int input) {
     this->Run();
     if (this->halted) {
       std::cerr << this->instance << ": Cannot send input; program has halted" << std::endl;
-      exit(1);
+      // exit(1);
     } else if (this->currentInstruction.operation != INPUT) {
       std::cerr << this->instance << ": Cannot send input; current opcode is " << this->currentInstruction.operation << std::endl;
       exit(1);
