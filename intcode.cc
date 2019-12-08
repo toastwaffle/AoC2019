@@ -5,50 +5,32 @@
 #include <string>
 #include <algorithm>
 #include <map>
+#include <functional>
+
+#include "intcode.h"
 
 namespace intcode {
 
-enum Operation {
-  UNKNoWN = -1,
-  ADD = 1,
-  MULTIPLY = 2,
-  INPUT = 3,
-  OUTPUT = 4,
-  JUMP_IF_TRUE = 5,
-  JUMP_IF_FALSE = 6,
-  LESS_THAN = 7,
-  EQUALS = 8,
-  HALT = 99,
-};
-
-enum ParameterMode {
-  POSITION = 0,
-  IMMEDIATE = 1,
-};
-
-struct Instruction {
-  Operation operation;
-  std::vector<int> parameters;
-  std::vector<ParameterMode> parameterModes;
-};
-
-std::vector<int> ReadInput(const std::string& filename) {
+IntCode::IntCode(const std::string instance, const std::string& filename) {
+  this->instance = instance;
   std::ifstream file(filename);
   if (!file.is_open()) {
-    std::cerr << "Failed to open file" << std::endl;
+    std::cerr << this->instance << ": Failed to open file" << std::endl;
     exit(1);
   }
   std::string line;
-  std::vector<int> result;
   while (std::getline(file, line)) {
     std::stringstream ss(line);
     std::string token;
     while (std::getline(ss, token, ',')) {
       if (token == "") continue;
-      result.push_back(std::stoi(token));
+      this->memory.push_back(std::stoi(token));
     }
   }
-  return result;
+  this->ip = 0;
+  this->halted = false;
+  this->outputter = nullptr;
+  NextInstruction();
 }
 
 int ParameterCount(const Operation& op) {
@@ -72,95 +54,106 @@ int ParameterCount(const Operation& op) {
   }
 }
 
-Instruction NextInstruction(const std::vector<int>& memory, int* ip) {
-  int opcode = memory[*ip];
+void IntCode::SetOutputter(std::function<void(int)> outputter) {
+  this->outputter = outputter;
+}
+
+void IntCode::NextInstruction() {
+  if (this->ip >= this->memory.size()) {
+    std::cerr << this->instance << ": Ran out of instructions" << std::endl;
+    exit(1);
+  }
+  int opcode = memory[this->ip];
   Instruction instruction;
   instruction.operation = static_cast<Operation>(opcode%100);
   opcode /= 100;
   for (int i = 0; i < ParameterCount(instruction.operation); i++) {
-    (*ip)++;
-    instruction.parameters.push_back(memory[*ip]);
+    this->ip++;
+    instruction.parameters.push_back(memory[this->ip]);
     instruction.parameterModes.push_back(static_cast<ParameterMode>(opcode%10));
     opcode /= 10;
   }
-  (*ip)++;
-  return instruction;
+  this->ip++;
+  this->currentInstruction = instruction;
 }
 
-int GetArg(const std::vector<int>& memory, const Instruction& instr, int index) {
-  int param = instr.parameters[index];
-  if (instr.parameterModes[index] == IMMEDIATE) return param;
-  return memory[param];
+int IntCode::GetArg(int index) {
+  int param = this->currentInstruction.parameters[index];
+  if (this->currentInstruction.parameterModes[index] == IMMEDIATE) return param;
+  return this->memory[param];
 }
 
-int Run(std::vector<int> memory, std::vector<int>& inputs, std::vector<int>& outputs) {
-  int ip = 0;
-  int inputIndex = 0;
-  while (ip < memory.size()) {
-    auto instr = NextInstruction(memory, &ip);
-    switch (instr.operation) {
+void IntCode::Run() {
+  while (!this->halted) {
+    switch (this->currentInstruction.operation) {
     case ADD:
-      memory[instr.parameters[2]] = GetArg(memory, instr, 0) + GetArg(memory, instr, 1);
+      this->memory[this->currentInstruction.parameters[2]] = this->GetArg(0) + this->GetArg(1);
       break;
     case MULTIPLY:
-      memory[instr.parameters[2]] = GetArg(memory, instr, 0) * GetArg(memory, instr, 1);
+      this->memory[this->currentInstruction.parameters[2]] = this->GetArg(0) * this->GetArg(1);
       break;
     case INPUT:
-    {
-      int input = inputs[inputIndex];
-      inputIndex++;
-      memory[instr.parameters[0]] = input;
-      break;
-    }
+      return;
     case OUTPUT:
-      outputs.push_back(GetArg(memory, instr, 0));
+      if (this->outputter == nullptr) {
+        std::cerr << this->instance << ": No outputter set for OUTPUT instruction." << std::endl;
+        exit(1);
+      }
+      this->outputter(this->GetArg(0));
       break;
     case JUMP_IF_TRUE:
-      if (GetArg(memory, instr, 0) != 0) {
-        ip = GetArg(memory, instr, 1);
+      if (this->GetArg(0) != 0) {
+        ip = this->GetArg(1);
       }
       break;
     case JUMP_IF_FALSE:
-      if (GetArg(memory, instr, 0) == 0) {
-        ip = GetArg(memory, instr, 1);
+      if (this->GetArg(0) == 0) {
+        ip = this->GetArg(1);
       }
       break;
     case LESS_THAN:
-      if (GetArg(memory, instr, 0) < GetArg(memory, instr, 1)) {
-        memory[instr.parameters[2]] = 1;
+      if (this->GetArg(0) < this->GetArg(1)) {
+        this->memory[this->currentInstruction.parameters[2]] = 1;
       } else {
-        memory[instr.parameters[2]] = 0;
+        this->memory[this->currentInstruction.parameters[2]] = 0;
       }
       break;
     case EQUALS:
-      if (GetArg(memory, instr, 0) == GetArg(memory, instr, 1)) {
-        memory[instr.parameters[2]] = 1;
+      if (this->GetArg(0) == this->GetArg(1)) {
+        this->memory[this->currentInstruction.parameters[2]] = 1;
       } else {
-        memory[instr.parameters[2]] = 0;
+        this->memory[this->currentInstruction.parameters[2]] = 0;
       }
       break;
     case HALT:
-      return memory[0];
+      this->halted = true;
+      return;
     default:
-      std::cerr << "Invalid opcode " << instr.operation << std::endl;
+      std::cerr << this->instance << ": Invalid opcode " << this->currentInstruction.operation << std::endl;
+      exit(1);
+    }
+    this->NextInstruction();
+  }
+}
+
+void IntCode::SendInput(int input) {
+  if (this->currentInstruction.operation != INPUT) {
+    this->Run();
+    if (this->halted) {
+      std::cerr << this->instance << ": Cannot send input; program has halted" << std::endl;
+      exit(1);
+    } else if (this->currentInstruction.operation != INPUT) {
+      std::cerr << this->instance << ": Cannot send input; current opcode is " << this->currentInstruction.operation << std::endl;
       exit(1);
     }
   }
-  std::cerr << "Ran out of instructions" << std::endl;
-  exit(1);
+  this->memory[this->currentInstruction.parameters[0]] = input;
+  this->NextInstruction();
+  this->Run();
 }
 
-int RunProgram(const std::string& filename, std::vector<int>& inputs, std::vector<int>& outputs) {
-  return Run(ReadInput(filename), inputs, outputs);
-}
-
-int RunProgram(const std::string& filename, int noun, int verb, std::vector<int>& inputs, std::vector<int>& outputs) {
-  std::vector<int> memory = ReadInput(filename);
-
-  memory[1] = noun;
-  memory[2] = verb;
-
-  return Run(memory, inputs, outputs);
+bool IntCode::IsHalted() {
+  return this->halted;
 }
 
 } // namespace intcode
