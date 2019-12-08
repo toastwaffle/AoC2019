@@ -101,10 +101,13 @@ void IntCode::Run() {
         std::cerr << this->instance << ": No outputter set for OUTPUT instruction." << std::endl;
         exit(1);
       }
-      // If the output causes Input or Run to be called, we need the instruction to be advanced.
+      // If the output causes Input or Run to be called, we need the instruction
+      // to be advanced else it will repeatedly output the same thing.
       int output = this->GetArg(0);
       this->NextInstruction();
       this->outputter(output);
+      // We also need to not advance the instruction (at the end of the switch),
+      // so we continue the while loop
       continue;
     }
     case JUMP_IF_TRUE:
