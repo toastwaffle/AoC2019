@@ -45,6 +45,7 @@ int ParameterCount(const Operation& op) {
       return 2;
     case INPUT:
     case OUTPUT:
+    case ADJUST_RELATIVE_BASE:
       return 1;
     case HALT:
       return 0;
@@ -54,9 +55,26 @@ int ParameterCount(const Operation& op) {
   }
 }
 
-void IntCode::SetOutputter(std::function<void(int)> outputter) {
+void IntCode::SetOutputter(std::function<void(long int)> outputter) {
   this->outputter = outputter;
 }
+
+void IntCode::WriteMem(uint address, long int value) {
+  this->EnsureMem(address);
+  this->memory[address] = value;
+}
+
+long int IntCode::ReadMem(uint address) {
+  this->EnsureMem(address);
+  return this->memory[address];
+}
+
+void IntCode::EnsureMem(uint address) {
+  if (address >= this->memory.size()) {
+    this->memory.resize(address * 2);
+  }
+}
+
 
 void IntCode::NextInstruction() {
   if (this->halted) return;
@@ -64,13 +82,13 @@ void IntCode::NextInstruction() {
     std::cerr << this->instance << ": Ran out of instructions" << std::endl;
     exit(1);
   }
-  int opcode = memory[this->ip];
+  int opcode = this->ReadMem(this->ip);
   Instruction instruction;
   instruction.operation = static_cast<Operation>(opcode%100);
   opcode /= 100;
   for (int i = 0; i < ParameterCount(instruction.operation); i++) {
     this->ip++;
-    instruction.parameters.push_back(memory[this->ip]);
+    instruction.parameters.push_back(this->ReadMem(this->ip));
     instruction.parameterModes.push_back(static_cast<ParameterMode>(opcode%10));
     opcode /= 10;
   }
@@ -78,20 +96,34 @@ void IntCode::NextInstruction() {
   this->currentInstruction = instruction;
 }
 
-int IntCode::GetArg(int index) {
-  int param = this->currentInstruction.parameters[index];
-  if (this->currentInstruction.parameterModes[index] == IMMEDIATE) return param;
-  return this->memory[param];
+uint IntCode::GetAddress(uint index) {
+  long int param = this->currentInstruction.parameters[index];
+  switch (this->currentInstruction.parameterModes[index]) {
+    case POSITION:
+      return param;
+    case RELATIVE:
+      return this->relativeBase+param;
+  }
+  std::cerr << this->instance << ": Cannot use IMMEDIATE mode for write address" << std::endl;
+  exit(1);
+}
+
+long int IntCode::GetArg(uint index) {
+  long int param = this->currentInstruction.parameters[index];
+  if (this->currentInstruction.parameterModes[index] == IMMEDIATE) {
+    return param;
+  }
+  return this->ReadMem(this->GetAddress(index));
 }
 
 void IntCode::Run() {
   while (!this->halted) {
     switch (this->currentInstruction.operation) {
     case ADD:
-      this->memory[this->currentInstruction.parameters[2]] = this->GetArg(0) + this->GetArg(1);
+      this->WriteMem(this->GetAddress(2), this->GetArg(0) + this->GetArg(1));
       break;
     case MULTIPLY:
-      this->memory[this->currentInstruction.parameters[2]] = this->GetArg(0) * this->GetArg(1);
+      this->WriteMem(this->GetAddress(2), this->GetArg(0) * this->GetArg(1));
       break;
     case INPUT:
       return;
@@ -103,7 +135,7 @@ void IntCode::Run() {
       }
       // If the output causes Input or Run to be called, we need the instruction
       // to be advanced else it will repeatedly output the same thing.
-      int output = this->GetArg(0);
+      long int output = this->GetArg(0);
       this->NextInstruction();
       this->outputter(output);
       // We also need to not advance the instruction (at the end of the switch),
@@ -122,17 +154,20 @@ void IntCode::Run() {
       break;
     case LESS_THAN:
       if (this->GetArg(0) < this->GetArg(1)) {
-        this->memory[this->currentInstruction.parameters[2]] = 1;
+        this->WriteMem(this->GetAddress(2), 1);
       } else {
-        this->memory[this->currentInstruction.parameters[2]] = 0;
+        this->WriteMem(this->GetAddress(2), 0);
       }
       break;
     case EQUALS:
       if (this->GetArg(0) == this->GetArg(1)) {
-        this->memory[this->currentInstruction.parameters[2]] = 1;
+        this->WriteMem(this->GetAddress(2), 1);
       } else {
-        this->memory[this->currentInstruction.parameters[2]] = 0;
+        this->WriteMem(this->GetAddress(2), 0);
       }
+      break;
+    case ADJUST_RELATIVE_BASE:
+      this->relativeBase += this->GetArg(0);
       break;
     case HALT:
       this->halted = true;
@@ -145,7 +180,7 @@ void IntCode::Run() {
   }
 }
 
-void IntCode::SendInput(int input) {
+void IntCode::SendInput(long int input) {
   if (this->currentInstruction.operation != INPUT) {
     this->Run();
     if (this->halted) {
@@ -156,7 +191,7 @@ void IntCode::SendInput(int input) {
       exit(1);
     }
   }
-  this->memory[this->currentInstruction.parameters[0]] = input;
+  this->WriteMem(this->GetAddress(0), input);
   this->NextInstruction();
   this->Run();
 }
