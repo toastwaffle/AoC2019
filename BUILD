@@ -52,3 +52,8 @@ cc_binary(
     srcs = ["day9.cc"],
     deps = [":intcode"],
 )
+
+cc_binary(
+    name = "day10",
+    srcs = ["day10.cc"],
+)
