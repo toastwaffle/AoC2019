@@ -48,7 +48,7 @@ IntCode::IntCode(const std::string instance, const std::string& filename) : inst
     std::string token;
     while (std::getline(ss, token, ',')) {
       if (token == "") continue;
-      memory_.push_back(std::stoi(token));
+      memory_.push_back(std::stol(token));
     }
   }
   NextInstruction();

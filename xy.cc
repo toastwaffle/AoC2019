@@ -27,6 +27,12 @@ int GreatestCommonDivisor(int a, int b) {
 
 XY::XY(int x, int y) : x(x), y(y) {}
 
+XY& XY::operator+=(const XY& other) {
+  x += other.x;
+  y += other.y;
+  return *this;
+}
+
 XY XY::operator-(const XY& other) const {
   return XY(x - other.x, y - other.y);
 }
@@ -60,6 +66,10 @@ double XY::Angle() const {
     angle -= 2 * PI;
   }
   return angle;
+}
+
+std::pair<int,int> XY::AsPair() const {
+  return std::pair<int,int>(x, y);
 }
 
 } // namespace xy
