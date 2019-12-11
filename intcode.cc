@@ -10,30 +10,9 @@
 #include "intcode.h"
 
 namespace intcode {
+namespace {
 
-IntCode::IntCode(const std::string instance, const std::string& filename) {
-  this->instance = instance;
-  std::ifstream file(filename);
-  if (!file.is_open()) {
-    std::cerr << this->instance << ": Failed to open file" << std::endl;
-    exit(1);
-  }
-  std::string line;
-  while (std::getline(file, line)) {
-    std::stringstream ss(line);
-    std::string token;
-    while (std::getline(ss, token, ',')) {
-      if (token == "") continue;
-      this->memory.push_back(std::stoi(token));
-    }
-  }
-  this->ip = 0;
-  this->halted = false;
-  this->outputter = nullptr;
-  NextInstruction();
-}
-
-int ParameterCount(const Operation& op) {
+int ParameterCount(const Operation op) {
   switch (op) {
     case ADD:
     case MULTIPLY:
@@ -55,149 +34,160 @@ int ParameterCount(const Operation& op) {
   }
 }
 
-void IntCode::SetOutputter(std::function<void(long int)> outputter) {
-  this->outputter = outputter;
-}
+} // namespace
 
-void IntCode::WriteMem(uint address, long int value) {
-  this->EnsureMem(address);
-  this->memory[address] = value;
-}
-
-long int IntCode::ReadMem(uint address) {
-  this->EnsureMem(address);
-  return this->memory[address];
-}
-
-void IntCode::EnsureMem(uint address) {
-  if (address >= this->memory.size()) {
-    this->memory.resize(address * 2);
-  }
-}
-
-
-void IntCode::NextInstruction() {
-  if (this->halted) return;
-  if (this->ip >= this->memory.size()) {
-    std::cerr << this->instance << ": Ran out of instructions" << std::endl;
+IntCode::IntCode(const std::string instance, const std::string& filename) : instance_(instance) {
+  std::ifstream file(filename);
+  if (!file.is_open()) {
+    std::cerr << instance_ << ": Failed to open file" << std::endl;
     exit(1);
   }
-  int opcode = this->ReadMem(this->ip);
+  std::string line;
+  while (std::getline(file, line)) {
+    std::stringstream ss(line);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+      if (token == "") continue;
+      memory_.push_back(std::stoi(token));
+    }
+  }
+  NextInstruction();
+}
+
+void IntCode::SetOutputter(std::function<void(int64_t)> outputter) {
+  outputter_ = outputter;
+}
+
+void IntCode::WriteMem(int64_t address, int64_t value) {
+  EnsureMem(address);
+  memory_[address] = value;
+}
+
+int64_t IntCode::ReadMem(int64_t address) {
+  EnsureMem(address);
+  return memory_[address];
+}
+
+void IntCode::EnsureMem(int64_t address) {
+  if (address >= memory_.size()) {
+    memory_.resize(address * 2);
+  }
+}
+
+void IntCode::NextInstruction() {
+  if (halted_) return;
+  if (ip_ >= memory_.size()) {
+    std::cerr << instance_ << ": Ran out of instructions" << std::endl;
+    exit(1);
+  }
+  int opcode = ReadMem(ip_);
   Instruction instruction;
   instruction.operation = static_cast<Operation>(opcode%100);
   opcode /= 100;
   for (int i = 0; i < ParameterCount(instruction.operation); i++) {
-    this->ip++;
-    instruction.parameters.push_back(this->ReadMem(this->ip));
-    instruction.parameterModes.push_back(static_cast<ParameterMode>(opcode%10));
+    ip_++;
+    instruction.parameters.push_back(ReadMem(ip_));
+    instruction.parameter_modes.push_back(static_cast<ParameterMode>(opcode%10));
     opcode /= 10;
   }
-  this->ip++;
-  this->currentInstruction = instruction;
+  ip_++;
+  current_instruction_ = instruction;
 }
 
-uint IntCode::GetAddress(uint index) {
-  long int param = this->currentInstruction.parameters[index];
-  switch (this->currentInstruction.parameterModes[index]) {
+int64_t IntCode::GetAddress(int64_t index) const {
+  int64_t param = current_instruction_.parameters[index];
+  switch (current_instruction_.parameter_modes[index]) {
     case POSITION:
       return param;
     case RELATIVE:
-      return this->relativeBase+param;
+      return relative_base_+param;
   }
-  std::cerr << this->instance << ": Cannot use IMMEDIATE mode for write address" << std::endl;
+  std::cerr << instance_ << ": Cannot use IMMEDIATE mode for write address" << std::endl;
   exit(1);
 }
 
-long int IntCode::GetArg(uint index) {
-  long int param = this->currentInstruction.parameters[index];
-  if (this->currentInstruction.parameterModes[index] == IMMEDIATE) {
+int64_t IntCode::GetArg(int64_t index) {
+  int64_t param = current_instruction_.parameters[index];
+  if (current_instruction_.parameter_modes[index] == IMMEDIATE) {
     return param;
   }
-  return this->ReadMem(this->GetAddress(index));
+  return ReadMem(GetAddress(index));
 }
 
 void IntCode::Run() {
-  while (!this->halted) {
-    switch (this->currentInstruction.operation) {
+  while (!halted_) {
+    switch (current_instruction_.operation) {
     case ADD:
-      this->WriteMem(this->GetAddress(2), this->GetArg(0) + this->GetArg(1));
+      WriteMem(GetAddress(2), GetArg(0) + GetArg(1));
       break;
     case MULTIPLY:
-      this->WriteMem(this->GetAddress(2), this->GetArg(0) * this->GetArg(1));
+      WriteMem(GetAddress(2), GetArg(0) * GetArg(1));
       break;
     case INPUT:
       return;
     case OUTPUT:
     {
-      if (this->outputter == nullptr) {
-        std::cerr << this->instance << ": No outputter set for OUTPUT instruction." << std::endl;
+      if (outputter_ == nullptr) {
+        std::cerr << instance_ << ": No outputter set for OUTPUT instruction." << std::endl;
         exit(1);
       }
       // If the output causes Input or Run to be called, we need the instruction
       // to be advanced else it will repeatedly output the same thing.
-      long int output = this->GetArg(0);
-      this->NextInstruction();
-      this->outputter(output);
+      int64_t output = GetArg(0);
+      NextInstruction();
+      outputter_(output);
       // We also need to not advance the instruction (at the end of the switch),
       // so we continue the while loop
       continue;
     }
     case JUMP_IF_TRUE:
-      if (this->GetArg(0) != 0) {
-        ip = this->GetArg(1);
+      if (GetArg(0) != 0) {
+        ip_ = GetArg(1);
       }
       break;
     case JUMP_IF_FALSE:
-      if (this->GetArg(0) == 0) {
-        ip = this->GetArg(1);
+      if (GetArg(0) == 0) {
+        ip_ = GetArg(1);
       }
       break;
     case LESS_THAN:
-      if (this->GetArg(0) < this->GetArg(1)) {
-        this->WriteMem(this->GetAddress(2), 1);
-      } else {
-        this->WriteMem(this->GetAddress(2), 0);
-      }
+      WriteMem(GetAddress(2), GetArg(0) < GetArg(1));
       break;
     case EQUALS:
-      if (this->GetArg(0) == this->GetArg(1)) {
-        this->WriteMem(this->GetAddress(2), 1);
-      } else {
-        this->WriteMem(this->GetAddress(2), 0);
-      }
+      WriteMem(GetAddress(2), GetArg(0) == GetArg(1));
       break;
     case ADJUST_RELATIVE_BASE:
-      this->relativeBase += this->GetArg(0);
+      relative_base_ += GetArg(0);
       break;
     case HALT:
-      this->halted = true;
+      halted_ = true;
       return;
     default:
-      std::cerr << this->instance << ": Invalid opcode " << this->currentInstruction.operation << std::endl;
+      std::cerr << instance_ << ": Invalid opcode " << current_instruction_.operation << std::endl;
       exit(1);
     }
-    this->NextInstruction();
+    NextInstruction();
   }
 }
 
-void IntCode::SendInput(long int input) {
-  if (this->currentInstruction.operation != INPUT) {
-    this->Run();
-    if (this->halted) {
-      std::cerr << this->instance << ": Cannot send input; program has halted" << std::endl;
+void IntCode::SendInput(int64_t input) {
+  if (current_instruction_.operation != INPUT) {
+    Run();
+    if (halted_) {
+      std::cerr << instance_ << ": Cannot send input; program has halted" << std::endl;
       // exit(1);
-    } else if (this->currentInstruction.operation != INPUT) {
-      std::cerr << this->instance << ": Cannot send input; current opcode is " << this->currentInstruction.operation << std::endl;
+    } else if (current_instruction_.operation != INPUT) {
+      std::cerr << instance_ << ": Cannot send input; current opcode is " << current_instruction_.operation << std::endl;
       exit(1);
     }
   }
-  this->WriteMem(this->GetAddress(0), input);
-  this->NextInstruction();
-  this->Run();
+  WriteMem(GetAddress(0), input);
+  NextInstruction();
+  Run();
 }
 
-bool IntCode::IsHalted() {
-  return this->halted;
+bool IntCode::IsHalted() const {
+  return halted_;
 }
 
 } // namespace intcode

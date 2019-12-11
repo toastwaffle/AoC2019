@@ -27,33 +27,35 @@ enum ParameterMode {
 
 struct Instruction {
   Operation operation;
-  std::vector<long int> parameters;
-  std::vector<ParameterMode> parameterModes;
+  std::vector<int64_t> parameters;
+  std::vector<ParameterMode> parameter_modes;
 };
 
 class IntCode {
 private:
-  std::string instance;
-  std::vector<long int> memory;
-  uint ip;
-  bool halted;
-  std::function<void(long int)> outputter;
-  Instruction currentInstruction;
-  int relativeBase;
+  const std::string instance_;
 
-  uint GetAddress(uint index);
-  long int GetArg(uint parameterIndex);
+  std::vector<int64_t> memory_;
+  Instruction current_instruction_;
+
+  int64_t ip_ = 0;
+  bool halted_ = false;
+  std::function<void(int64_t)> outputter_ = nullptr;
+  int relative_base_ = 0;
+
+  int64_t GetAddress(int64_t index) const;
+  int64_t GetArg(int64_t parameter_index);
   void NextInstruction();
-  void WriteMem(uint address, long int value);
-  long int ReadMem(uint address);
-  void EnsureMem(uint address);
+  void WriteMem(int64_t address, int64_t value);
+  int64_t ReadMem(int64_t address);
+  void EnsureMem(int64_t address);
 
 public:
   IntCode(const std::string instance, const std::string& filename);
-  void SetOutputter(std::function<void(long int)> outputter);
+  void SetOutputter(std::function<void(int64_t)> outputter);
   void Run();
-  void SendInput(long int input);
-  bool IsHalted();
+  void SendInput(int64_t input);
+  bool IsHalted() const;
 };
 
 } // namespace intcode
