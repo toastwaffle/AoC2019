@@ -53,7 +53,14 @@ cc_binary(
     deps = [":intcode"],
 )
 
+cc_library(
+    name = "xy",
+    srcs = ["xy.cc"],
+    hdrs = ["xy.h"],
+)
+
 cc_binary(
     name = "day10",
     srcs = ["day10.cc"],
+    deps = [":xy"],
 )
