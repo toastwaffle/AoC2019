@@ -73,3 +73,8 @@ cc_binary(
         ":xy",
     ],
 )
+
+cc_binary(
+    name = "day12",
+    srcs = ["day12.cc"],
+)
