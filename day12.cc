@@ -2,6 +2,7 @@
 #include <iostream>
 #include <set>
 #include <numeric>
+#include <tuple>
 
 class XYZ {
 public:
@@ -49,13 +50,11 @@ void ApplyGravity(const int position1, const int position2, int* velocity1, int*
 class Planet {
 private:
   std::string name_;
-  XYZ position_;
-  XYZ velocity_;
-  std::set<std::pair<int, int>> x_seen_;
-  std::set<std::pair<int, int>> y_seen_;
-  std::set<std::pair<int, int>> z_seen_;
 
 public:
+  XYZ position_;
+  XYZ velocity_;
+
   Planet(std::string name, int x, int y, int z) : name_(name), position_(x, y, z), velocity_(0, 0, 0) {}
 
   void UpdateVelocity(Planet& other) {
@@ -68,12 +67,6 @@ public:
     position_ += velocity_;
   }
 
-  void RecordState(long unsigned int step) {
-    x_seen_.insert(std::pair<int,int>(position_.x, velocity_.x));
-    y_seen_.insert(std::pair<int,int>(position_.y, velocity_.y));
-    z_seen_.insert(std::pair<int,int>(position_.z, velocity_.z));
-  }
-
   int TotalEnergy() {
     return (
       std::abs(position_.x) +
@@ -84,18 +77,6 @@ public:
       std::abs(velocity_.y) +
       std::abs(velocity_.z)
     );
-  }
-
-  bool XMatchesPrevious() {
-    return x_seen_.find(std::pair<int,int>(position_.x, velocity_.x)) != x_seen_.end();
-  }
-
-  bool YMatchesPrevious() {
-    return y_seen_.find(std::pair<int,int>(position_.y, velocity_.y)) != y_seen_.end();
-  }
-
-  bool ZMatchesPrevious() {
-    return z_seen_.find(std::pair<int,int>(position_.z, velocity_.z)) != z_seen_.end();
   }
 
   std::ostream& Output(std::ostream& output) const {
@@ -120,6 +101,25 @@ int main() {
   // Planet ganymede("Ganymede", 4, -8, 8);
   // Planet callisto("Callisto", 3, 5, -1);
 
+  std::tuple<int,int,int,int> initial_x(
+    io.position_.x,
+    europa.position_.x,
+    ganymede.position_.x,
+    callisto.position_.x
+  );
+  std::tuple<int,int,int,int> initial_y(
+    io.position_.y,
+    europa.position_.y,
+    ganymede.position_.y,
+    callisto.position_.y
+  );
+  std::tuple<int,int,int,int> initial_z(
+    io.position_.z,
+    europa.position_.z,
+    ganymede.position_.z,
+    callisto.position_.z
+  );
+
   int x_cycle = -1;
   int y_cycle = -1;
   int z_cycle = -1;
@@ -138,33 +138,54 @@ int main() {
     }
 
     if (
+      i != 0 &&
       x_cycle == -1 &&
-      io.XMatchesPrevious() &&
-      europa.XMatchesPrevious() &&
-      ganymede.XMatchesPrevious() &&
-      callisto.XMatchesPrevious()
+      io.velocity_.x &&
+      europa.velocity_.x &&
+      ganymede.velocity_.x &&
+      callisto.velocity_.x &&
+      initial_x == std::tuple<int,int,int,int>(
+        io.position_.x,
+        europa.position_.x,
+        ganymede.position_.x,
+        callisto.position_.x
+      )
     ) {
       x_cycle = i;
       std::cout << "X cycle: " << i << std::endl;
     }
 
     if (
+      i != 0 &&
       y_cycle == -1 &&
-      io.YMatchesPrevious() &&
-      europa.YMatchesPrevious() &&
-      ganymede.YMatchesPrevious() &&
-      callisto.YMatchesPrevious()
+      io.velocity_.y &&
+      europa.velocity_.y &&
+      ganymede.velocity_.y &&
+      callisto.velocity_.y &&
+      initial_y == std::tuple<int,int,int,int>(
+        io.position_.y,
+        europa.position_.y,
+        ganymede.position_.y,
+        callisto.position_.y
+      )
     ) {
       y_cycle = i;
       std::cout << "Y cycle: " << i << std::endl;
     }
 
     if (
+      i != 0 &&
       z_cycle == -1 &&
-      io.ZMatchesPrevious() &&
-      europa.ZMatchesPrevious() &&
-      ganymede.ZMatchesPrevious() &&
-      callisto.ZMatchesPrevious()
+      io.velocity_.z &&
+      europa.velocity_.z &&
+      ganymede.velocity_.z &&
+      callisto.velocity_.z &&
+      initial_z == std::tuple<int,int,int,int>(
+        io.position_.z,
+        europa.position_.z,
+        ganymede.position_.z,
+        callisto.position_.z
+      )
     ) {
       z_cycle = i;
       std::cout << "Z cycle: " << i << std::endl;
@@ -173,11 +194,6 @@ int main() {
     if (i % 1000000 == 0) {
       std::cout << i << std::endl;
     }
-
-    io.RecordState(i);
-    europa.RecordState(i);
-    ganymede.RecordState(i);
-    callisto.RecordState(i);
 
     io.UpdateVelocity(europa);
     io.UpdateVelocity(ganymede);
@@ -194,5 +210,5 @@ int main() {
     i++;
   }
 
-  std::cout << std::lcm(std::lcm(x_cycle+1, y_cycle+1), z_cycle+1) << std::endl;
+  std::cout << std::lcm(std::lcm(x_cycle, y_cycle), z_cycle) << std::endl;
 }
