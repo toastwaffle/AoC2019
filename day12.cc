@@ -101,30 +101,35 @@ int main() {
   // Planet ganymede("Ganymede", 4, -8, 8);
   // Planet callisto("Callisto", 3, 5, -1);
 
-  std::tuple<int,int,int,int> initial_x(
+  // Planet io("Io", -8, -10, 0);
+  // Planet europa("Europa", 5, 5, 10);
+  // Planet ganymede("Ganymede", 2, -7, 3);
+  // Planet callisto("Callisto", 9, -8, -3);
+
+  std::tuple<int64_t,int64_t,int64_t,int64_t> initial_x(
     io.position_.x,
     europa.position_.x,
     ganymede.position_.x,
     callisto.position_.x
   );
-  std::tuple<int,int,int,int> initial_y(
+  std::tuple<int64_t,int64_t,int64_t,int64_t> initial_y(
     io.position_.y,
     europa.position_.y,
     ganymede.position_.y,
     callisto.position_.y
   );
-  std::tuple<int,int,int,int> initial_z(
+  std::tuple<int64_t,int64_t,int64_t,int64_t> initial_z(
     io.position_.z,
     europa.position_.z,
     ganymede.position_.z,
     callisto.position_.z
   );
 
-  int x_cycle = -1;
-  int y_cycle = -1;
-  int z_cycle = -1;
+  int64_t x_cycle = -1;
+  int64_t y_cycle = -1;
+  int64_t z_cycle = -1;
 
-  int i = 0;
+  int64_t i = 0;
 
   while (x_cycle == -1 || y_cycle == -1 || z_cycle == -1) {
     if (i == 1000) {
@@ -140,11 +145,11 @@ int main() {
     if (
       i != 0 &&
       x_cycle == -1 &&
-      io.velocity_.x &&
-      europa.velocity_.x &&
-      ganymede.velocity_.x &&
-      callisto.velocity_.x &&
-      initial_x == std::tuple<int,int,int,int>(
+      io.velocity_.x == 0 &&
+      europa.velocity_.x == 0 &&
+      ganymede.velocity_.x == 0 &&
+      callisto.velocity_.x == 0 &&
+      initial_x == std::tuple<int64_t,int64_t,int64_t,int64_t>(
         io.position_.x,
         europa.position_.x,
         ganymede.position_.x,
@@ -158,11 +163,11 @@ int main() {
     if (
       i != 0 &&
       y_cycle == -1 &&
-      io.velocity_.y &&
-      europa.velocity_.y &&
-      ganymede.velocity_.y &&
-      callisto.velocity_.y &&
-      initial_y == std::tuple<int,int,int,int>(
+      io.velocity_.y == 0 &&
+      europa.velocity_.y == 0 &&
+      ganymede.velocity_.y == 0 &&
+      callisto.velocity_.y == 0 &&
+      initial_y == std::tuple<int64_t,int64_t,int64_t,int64_t>(
         io.position_.y,
         europa.position_.y,
         ganymede.position_.y,
@@ -176,11 +181,11 @@ int main() {
     if (
       i != 0 &&
       z_cycle == -1 &&
-      io.velocity_.z &&
-      europa.velocity_.z &&
-      ganymede.velocity_.z &&
-      callisto.velocity_.z &&
-      initial_z == std::tuple<int,int,int,int>(
+      io.velocity_.z == 0 &&
+      europa.velocity_.z == 0 &&
+      ganymede.velocity_.z == 0 &&
+      callisto.velocity_.z == 0 &&
+      initial_z == std::tuple<int64_t,int64_t,int64_t,int64_t>(
         io.position_.z,
         europa.position_.z,
         ganymede.position_.z,
